@@ -1,0 +1,6 @@
+[submodule "intelligent_placer_lib/common"]
+	path = intelligent_placer_lib/common
+	url = git@github.com:ik6cgsg/ml2021-common.git
+[submodule "intelligent_checker_lib/common"]
+	path = intelligent_checker_lib/common
+	url = git@github.com:ik6cgsg/ml2021-common.git
