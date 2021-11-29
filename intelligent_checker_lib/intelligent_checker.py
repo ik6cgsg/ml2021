@@ -1,14 +1,12 @@
 import argparse
 import glob
 import random
-#from intelligent_placer_lib import intelligent_placer
 import numpy as np
 import cv2
 from typing import List
-import matplotlib.pyplot as plt
-import skimage.transform
-import common.image
-import common.common
+import intelligent_checker_lib.util.image
+from intelligent_checker_lib.util import common
+from intelligent_checker_lib.util.restrictions import RestrictionHandler
 
 TAG = '[intelligent_checker]'
 
@@ -23,17 +21,17 @@ def generate_test_image(
     indices = random.sample(range(len(object_images)), objects_num)
     # cut out objects
     for i in indices:
-        mask = common.common.extract_object_masks(object_grayscale_images[i])[-1]
-        cut_out = common.common.cut_out_object(object_images[i], mask)
-        a4_mask = common.common.extract_background_mask(object_grayscale_images[i])
-        _, k, _, _ = common.common.get_perspective_matrix_and_scale(a4_mask)
+        mask = intelligent_checker_lib.util.common.extract_object_masks(object_grayscale_images[i])[-1]
+        cut_out = intelligent_checker_lib.util.common.cut_out_object(object_images[i], mask)
+        a4_mask = intelligent_checker_lib.util.common.extract_background_mask(object_grayscale_images[i])
+        _, k, _, _ = intelligent_checker_lib.util.common.get_perspective_matrix_and_scale(a4_mask)
         scale = 2 * k
         m = np.float32([
             [scale, 0, cut_out.shape[1] * (1 - scale) / 2],
             [0, scale, cut_out.shape[0] * (1 - scale) / 2]
         ])
         cut_out = cv2.warpAffine(cut_out, m, (cut_out.shape[1], cut_out.shape[0]))
-        common.image.show(cut_out, "cut out")
+        intelligent_checker_lib.util.image.show(cut_out, "cut out")
         objects.append(cut_out)
 
     result = background_image.copy()
@@ -63,7 +61,7 @@ def generate_test_image(
 def test_n_random_objects_larger_rect(objects, objects_gray, background, max):
     for i in range(1, max + 1):
         img = generate_test_image(objects, objects_gray, background, i)
-        common.image.show(img, "test_image_" + str(i))
+        intelligent_checker_lib.util.image.show(img, "test_image_" + str(i))
     # todo
 
 
@@ -73,7 +71,7 @@ if __name__ == '__main__':
                         type=str, help="local path to 10 images with single objects placed on a4")
     parser.add_argument("-b", "--background", default="back.jpg",
                         type=str, help="local path to image with background")
-    parser.add_argument("-r", "--restrictions", default="restrictions.json",
+    parser.add_argument("-r", "--restrictions", default="default_config.yaml",
                         type=str, help="local path to restrictions json")
     args = parser.parse_args()
 
@@ -81,10 +79,17 @@ if __name__ == '__main__':
         print("Some of params are empty(")
         exit(0)
 
-    background = common.image.open_image_rgb(args.background)
-    common.image.show(background, "back")
-    object_paths = glob.glob(args.images_folder+"*")
-    objects = [common.image.open_image_rgb(name) for name in object_paths]
-    objects_gray = [common.image.open_image(name) for name in object_paths]
+    RestrictionHandler.load(args.restrictions)
+    print(RestrictionHandler.current)
+    if RestrictionHandler.has("polygon_vertex_num"):
+        mn, mx = RestrictionHandler.get("polygon_vertex_num")
+        print("min res = ", mn)
+        print("max res = ", mx)
 
-    test_n_random_objects_larger_rect(objects, objects_gray, background, 4)
+    #background = intelligent_checker_lib.util.image.open_image_rgb(args.background)
+    #intelligent_checker_lib.util.image.show(background, "back")
+    #object_paths = glob.glob(args.images_folder+"*")
+    #objects = [intelligent_checker_lib.util.image.open_image_rgb(name) for name in object_paths]
+    #objects_gray = [intelligent_checker_lib.util.image.open_image(name) for name in object_paths]
+
+    #test_n_random_objects_larger_rect(objects, objects_gray, background, 1)
