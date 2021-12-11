@@ -99,7 +99,9 @@ def extract_object_mask_approximations(background_mask) -> List:
 
 def apply_mask(img: np.ndarray, mask: np.ndarray):
     cropped_object_img = cv2.bitwise_and(img.astype("uint8") + 1, img.astype("uint8") + 1, mask=mask.astype("uint8"))
-    contours, _ = cv2.findContours(cropped_object_img.astype("uint8"), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    grayscale = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    image.show(grayscale, "huy")
+    contours, _ = cv2.findContours(grayscale.astype("uint8"), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     x, y, w, h = cv2.boundingRect(contours[0])
     return cropped_object_img[x:w, y:h]
 
@@ -200,4 +202,3 @@ def insert_image_into_another_image(
     overlay_image(img_result, img_overlay, x, y, alpha_mask)
 
     return img_result
-
