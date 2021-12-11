@@ -97,7 +97,7 @@ def extract_object_mask_approximations(background_mask) -> List:
     return output
 
 
-def cut_out_object(img: np.ndarray, mask: np.ndarray):
+def apply_mask(img: np.ndarray, mask: np.ndarray):
     return cv2.bitwise_and(img.astype("uint8") + 1, img.astype("uint8") + 1,
                            mask=mask.astype("uint8"))
 

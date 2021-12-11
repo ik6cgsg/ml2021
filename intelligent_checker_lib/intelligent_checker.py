@@ -3,7 +3,7 @@ import glob
 import random
 import numpy as np
 import cv2
-from typing import List
+from typing import List, Dict
 import intelligent_checker_lib.util.image
 from intelligent_checker_lib.util import common
 from intelligent_checker_lib.util.restrictions import RestrictionHandler
@@ -11,58 +11,42 @@ from intelligent_checker_lib.util.restrictions import RestrictionHandler
 TAG = '[intelligent_checker]'
 
 
-def generate_test_image(
-    object_images: List[np.ndarray],
-    object_grayscale_images: List[np.ndarray],
-    background_image: np.ndarray,
-    objects_num: int
-) -> np.ndarray:
-    objects: List[np.ndarray] = []
-    indices = random.sample(range(len(object_images)), objects_num)
+def generate_test_image(objects: List[np.ndarray], background_image: np.ndarray) -> np.ndarray:
+    pass
+
+
+def warp_to_scale(image: np.ndarray, a4_image_grayscale: np.ndarray, ppm: float) -> np.ndarray:
+    a4_mask = common.extract_background_mask(a4_image_grayscale)
+    _, k, _, _ = common.get_perspective_matrix_and_scale(a4_mask)
+    scale = ppm * k
+    m = np.float32([
+        [scale, 0, image.shape[1] * (1 - scale) / 2],
+        [0, scale, image.shape[0] * (1 - scale) / 2]
+    ])
+    return cv2.warpAffine(image, m, (image.shape[1], image.shape[0]))
+
+
+def cut_out_object(image_grayscale: np.ndarray, image_color: np.ndarray) -> np.ndarray:
+    mask = common.extract_object_masks(image_grayscale)[-1]
+    return common.apply_mask(image_color, mask)
+
+
+def generate_contour():
+    pass
+
+
+def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
+         background_image: np.ndarray, restrictions: Dict) -> None:
     # cut out objects
-    for i in indices:
-        mask = intelligent_checker_lib.util.common.extract_object_masks(object_grayscale_images[i])[-1]
-        cut_out = intelligent_checker_lib.util.common.cut_out_object(object_images[i], mask)
-        a4_mask = intelligent_checker_lib.util.common.extract_background_mask(object_grayscale_images[i])
-        _, k, _, _ = intelligent_checker_lib.util.common.get_perspective_matrix_and_scale(a4_mask)
-        scale = 2 * k
-        m = np.float32([
-            [scale, 0, cut_out.shape[1] * (1 - scale) / 2],
-            [0, scale, cut_out.shape[0] * (1 - scale) / 2]
-        ])
-        cut_out = cv2.warpAffine(cut_out, m, (cut_out.shape[1], cut_out.shape[0]))
-        intelligent_checker_lib.util.image.show(cut_out, "cut out")
-        objects.append(cut_out)
+    cut_objects: List[np.ndarray] = []
+    for i in range(object_images):
+        cut_objects.append(cut_out_object(object_grayscale_images[i], object_images[i]))
+    # generate test images for different restrictions
 
-    result = background_image.copy()
-    # linear shift
-    for i, object_image in enumerate(objects):
-        shift = 450
-        x = 0 #-shift // 2 + shift * i / (len(objects) - 1)
-        y = 0
-        if len(objects) > 1:
-            y = -shift // 2 + shift * i / (len(objects) - 1)
-        # angle = (i + 1) * 2 * 3.14 / 3
-        #
-        # m = np.float32([[1, 0, -object_image.shape[1] // 2], [0, 1, -object_image.shape[0] // 2]])
-        # object_image = cv2.warpAffine(object_image, m, (object_image.shape[1], object_image.shape[0]))
-        # m = np.float32([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0]])
-        # object_image = cv2.warpAffine(object_image, m, (object_image.shape[1], object_image.shape[0]))
-        # m = np.float32([[1, 0, object_image.shape[1] // 2], [0, 1, object_image.shape[0] // 2]])
-        # object_image = cv2.warpAffine(object_image, m, (object_image.shape[1], object_image.shape[0]))
+    # generate contour
 
-        m = np.float32([[1, 0, x], [0, 1, y]])
-        object_image = cv2.warpAffine(object_image, m, (object_image.shape[1], object_image.shape[0]))
-        result[object_image > 0] = object_image[object_image > 0]
-
-    return result
-
-
-def test_n_random_objects_larger_rect(objects, objects_gray, background, max):
-    for i in range(1, max + 1):
-        img = generate_test_image(objects, objects_gray, background, i)
-        intelligent_checker_lib.util.image.show(img, "test_image_" + str(i))
-    # todo
+    # test stuff
+    pass
 
 
 if __name__ == '__main__':
