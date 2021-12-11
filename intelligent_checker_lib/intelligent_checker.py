@@ -26,22 +26,46 @@ def generate_test_image(objects: List[np.ndarray], background_image: np.ndarray)
     H = background_image.shape[0]
 
     max_h_in_current_row = 0
+    obj_index = 0
+    row_index = 0
 
-    for obj in objects:
+    objects_with_coordinates_and_shapes = []
+    rows_distance_to_right_side = []
+
+    not_placed = False
+
+    while obj_index < len(objects):
+        obj = objects[obj_index]
         if obj.shape[0] < H - cur_y and obj.shape[1] < W - cur_x:
-            common.insert_image_into_another_image(
-                img_to_insert=obj,
-                img_to_insert_into=result_image,
-                x=cur_x,
-                y=cur_y
-            )
+            objects_with_coordinates_and_shapes.append([obj, cur_x, cur_y, row_index])
             cur_x = cur_x + obj.shape[1] + 1
             if max_h_in_current_row < obj.shape[0]:
                 max_h_in_current_row = obj.shape[0]
+            obj_index += 1
         else:
+            if not_placed:
+                not_placed = False
+                obj_index += 1
+                continue
+            not_placed = True
+
+            rows_distance_to_right_side.append(W - cur_x)
+            row_index += 1
             cur_x = 1
             cur_y = cur_y + max_h_in_current_row + 1
             max_h_in_current_row = 0
+
+    rows_distance_to_right_side.append(W - cur_x)
+
+    dist_to_bottom_side = H - cur_y - max_h_in_current_row
+
+    for elem in objects_with_coordinates_and_shapes:
+        result_image = common.insert_image_into_another_image(
+            img_to_insert=elem[0],
+            img_to_insert_into=result_image,
+            x=elem[1] + rows_distance_to_right_side[elem[3]] // 2,
+            y=elem[2] + dist_to_bottom_side // 2
+        )
 
     return result_image
 
@@ -92,12 +116,12 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
          background_image: np.ndarray) -> None:
     # cut out objects
     cut_objects: List[np.ndarray] = []
-    for i in range(len(object_images)):
-        cut_objects.append(cut_out_object(object_grayscale_images[i], object_images[i]))
-        image.save_image(cut_objects[-1], f"cut_objects/object_{i}.jpg")
-
     # for i in range(len(object_images)):
-    #     cut_objects.append(image.open_image_rgb(f"cut_objects/object_{i}.jpg"))
+    #     cut_objects.append(cut_out_object(object_grayscale_images[i], object_images[i]))
+    #     image.save_image(cut_objects[-1], f"cut_objects/object_{i}.jpg")
+
+    for i in range(len(object_images)):
+        cut_objects.append(image.open_image_rgb(f"cut_objects/object_{i}.jpg"))
 
     test_cases: List[TestCase] = []
 
@@ -130,7 +154,7 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
 
         # generate image
         test_image = generate_test_image(test_case_objects, background_image)
-        image.show(test_image, "")
+        image.save_image(test_image, f"govno/{case_index}_zalupa.jpg")
 
         # "resolution", to generated image
         # ...
@@ -205,17 +229,8 @@ if __name__ == '__main__':
         exit(0)
 
     RestrictionHandler.load(args.restrictions)
-    print(RestrictionHandler.current)
-    if RestrictionHandler.has("polygon_vertex_num"):
-        mn, mx = RestrictionHandler.get("polygon_vertex_num")
-        print("min res = ", mn)
-        print("max res = ", mx)
-
     background = image.open_image_rgb(args.background)
-    # intelligent_checker_lib.util.image.show(background, "back")
     object_paths = glob.glob(args.images_folder+"*")
     objects = [image.open_image_rgb(name) for name in object_paths]
     objects_gray = [image.open_image(name) for name in object_paths]
-
     test(objects, objects_gray, background)
-    # test_n_random_objects_larger_rect(objects, objects_gray, background, 1)

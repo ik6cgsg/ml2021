@@ -99,11 +99,10 @@ def extract_object_mask_approximations(background_mask) -> List:
 
 def apply_mask(img: np.ndarray, mask: np.ndarray):
     cropped_object_img = cv2.bitwise_and(img.astype("uint8") + 1, img.astype("uint8") + 1, mask=mask.astype("uint8"))
-    grayscale = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    image.show(grayscale, "huy")
+    grayscale = cv2.cvtColor(cropped_object_img, cv2.COLOR_RGB2GRAY)
     contours, _ = cv2.findContours(grayscale.astype("uint8"), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     x, y, w, h = cv2.boundingRect(contours[0])
-    return cropped_object_img[x:w, y:h]
+    return cropped_object_img[y - 20:y + h + 20, x - 20:x + w + 20]
 
 
 def extract_a4_mask(img: np.ndarray) -> np.ndarray:
@@ -187,7 +186,6 @@ def overlay_image(img: np.ndarray, img_overlay: np.ndarray, x: float, y: float, 
     img_overlay_crop = img_overlay[y1_overlay:y2_overlay, x1_overlay:x2_overlay]
     alpha = alpha_mask[y1_overlay:y2_overlay, x1_overlay:x2_overlay, np.newaxis]
     alpha_inv = 1.0 - alpha
-
     img_crop[:] = alpha * img_overlay_crop + alpha_inv * img_crop
 
 
@@ -196,7 +194,8 @@ def insert_image_into_another_image(
         img_to_insert_into: np.ndarray,
         x: float,
         y: float) -> np.ndarray:
-    alpha_mask = img_to_insert[:, :, 3] / 255.0
+    alpha_mask = np.zeros(img_to_insert.shape[:2])
+    alpha_mask[np.sum(img_to_insert, 2) > 15] = 1
     img_result = img_to_insert_into[:, :, :3].copy()
     img_overlay = img_to_insert[:, :, :3]
     overlay_image(img_result, img_overlay, x, y, alpha_mask)
