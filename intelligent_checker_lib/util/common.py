@@ -98,8 +98,10 @@ def extract_object_mask_approximations(background_mask) -> List:
 
 
 def apply_mask(img: np.ndarray, mask: np.ndarray):
-    return cv2.bitwise_and(img.astype("uint8") + 1, img.astype("uint8") + 1,
-                           mask=mask.astype("uint8"))
+    cropped_object_img = cv2.bitwise_and(img.astype("uint8") + 1, img.astype("uint8") + 1, mask=mask.astype("uint8"))
+    contours, _ = cv2.findContours(cropped_object_img.astype("uint8"), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    x, y, w, h = cv2.boundingRect(contours[0])
+    return cropped_object_img[x:w, y:h]
 
 
 def extract_a4_mask(img: np.ndarray) -> np.ndarray:
