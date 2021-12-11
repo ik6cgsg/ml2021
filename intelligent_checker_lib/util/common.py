@@ -163,3 +163,39 @@ def get_perspective_matrix_and_scale(a4mask, verbose: bool = False):
         print("Matrix = ", m)
         print("mm in 1 pixel = ", k)
     return m, k, w, h
+
+
+def overlay_image(img: np.ndarray, img_overlay: np.ndarray, x: float, y: float, alpha_mask: np.ndarray):
+    """Overlay `img_overlay` onto `img` at (x, y) and blend using `alpha_mask`.
+    `alpha_mask` must have same HxW as `img_overlay` and values in range [0, 1].
+    """
+
+    y1, y2 = max(0, y), min(img.shape[0], y + img_overlay.shape[0])
+    x1, x2 = max(0, x), min(img.shape[1], x + img_overlay.shape[1])
+
+    y1_overlay, y2_overlay = max(0, -y), min(img_overlay.shape[0], img.shape[0] - y)
+    x1_overlay, x2_overlay = max(0, -x), min(img_overlay.shape[1], img.shape[1] - x)
+
+    if y1 >= y2 or x1 >= x2 or y1_overlay >= y2_overlay or x1_overlay >= x2_overlay:
+        return
+
+    img_crop = img[y1:y2, x1:x2]
+    img_overlay_crop = img_overlay[y1_overlay:y2_overlay, x1_overlay:x2_overlay]
+    alpha = alpha_mask[y1_overlay:y2_overlay, x1_overlay:x2_overlay, np.newaxis]
+    alpha_inv = 1.0 - alpha
+
+    img_crop[:] = alpha * img_overlay_crop + alpha_inv * img_crop
+
+
+def insert_image_into_another_image(
+        img_to_insert: np.ndarray,
+        img_to_insert_into: np.ndarray,
+        x: float,
+        y: float) -> np.ndarray:
+    alpha_mask = img_to_insert[:, :, 3] / 255.0
+    img_result = img_to_insert_into[:, :, :3].copy()
+    img_overlay = img_to_insert[:, :, :3]
+    overlay_image(img_result, img_overlay, x, y, alpha_mask)
+
+    return img_result
+

@@ -1,10 +1,9 @@
-import argparse
-import glob
-import random
-import numpy as np
 import cv2
+import argparse
+import numpy as np
+
 from typing import List, Dict
-import intelligent_checker_lib.util.image
+
 from intelligent_checker_lib.util import common
 from intelligent_checker_lib.util.restrictions import RestrictionHandler
 
@@ -12,7 +11,31 @@ TAG = '[intelligent_checker]'
 
 
 def generate_test_image(objects: List[np.ndarray], background_image: np.ndarray) -> np.ndarray:
-    pass
+    cur_x = 1
+    cur_y = 1
+    result_image = background_image.copy()
+    W = background_image.shape[1]
+    H = background_image.shape[0]
+
+    max_h_in_current_row = 0
+
+    for obj in objects:
+        if obj.shape[0] < H - cur_y and obj.shape[1] < W - cur_x:
+            common.insert_image_into_another_image(
+                img_to_insert=obj,
+                img_to_insert_into=result_image,
+                x=cur_x,
+                y=cur_y
+            )
+            cur_x = cur_x + obj.shape[1] + 1
+            if max_h_in_current_row < obj.shape[0]:
+                max_h_in_current_row = obj.shape[0]
+        else:
+            cur_x = 1
+            cur_y = cur_y + max_h_in_current_row + 1
+            max_h_in_current_row = 0
+
+    return result_image
 
 
 def warp_to_scale(image: np.ndarray, a4_image_grayscale: np.ndarray, ppm: float) -> np.ndarray:
