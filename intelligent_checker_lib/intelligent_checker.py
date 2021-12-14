@@ -8,7 +8,8 @@ from intelligent_checker_lib.util import image
 from intelligent_checker_lib.util import common
 from intelligent_checker_lib.util.restrictions import RestrictionHandler
 import itertools
-#from intelligent_gritsaenko_placer.intelligent_placer_lib.intelligent_placer import check_image
+from intelligent_gritsaenko_placer.intelligent_placer_lib.intelligent_placer import check_image
+from tabulate import tabulate
 
 
 TAG = '[intelligent_checker]'
@@ -91,32 +92,33 @@ def cut_out_object(image_grayscale: np.ndarray, image_color: np.ndarray) -> np.n
 
 
 def generate_polygons(objects: List[np.ndarray], ppm: float) -> np.ndarray:
-    sum_width = 0
-    sum_height = 0
-    max_width = 0
-    max_height = 0
+    sum_width = 0.0
+    sum_height = 0.0
+    max_width = 0.0
+    max_height = 0.0
 
     for obj in objects:
-        sum_height += obj.shape[0]
-        sum_width += obj.shape[1]
-        max_height = np.max(max_height, obj.shape[0])
-        max_width = np.max(max_width, obj.shape[1])
         sum_height += obj.shape[0] - DEFAULT_PPM
         sum_width += obj.shape[1] - DEFAULT_PPM
-        max_height = np.max(max_height, obj.shape[0] - DEFAULT_PPM)
-        max_width = np.max(max_width, obj.shape[1] - DEFAULT_PPM)
+        max_height = max(max_height, obj.shape[0] - DEFAULT_PPM)
+        max_width = max(max_width, obj.shape[1] - DEFAULT_PPM)
+
+    sum_width += 2.0
+    sum_height += 2.0
+    max_width += 2.0
+    max_height += 2.0
 
     # max width, sum height
-    polygons = np.ndarray((4, 4, 2))
+    polygons = np.ndarray((2, 4, 2))
     polygons[0, 0] = [0, 0]
-    polygons[0, 1] = [max_width * ppm, 0]
-    polygons[0, 2] = [max_width * ppm, sum_height * ppm]
-    polygons[0, 3] = [0, sum_height * ppm]
+    polygons[0, 1] = [max_width / ppm, 0]
+    polygons[0, 2] = [max_width / ppm, sum_height / ppm]
+    polygons[0, 3] = [0, sum_height / ppm]
     # max height, sum width
     polygons[1, 0] = [0, 0]
-    polygons[1, 1] = [sum_width * ppm, 0]
-    polygons[1, 2] = [sum_width * ppm, max_height * ppm]
-    polygons[1, 3] = [0, max_height * ppm]
+    polygons[1, 1] = [sum_width / ppm, 0]
+    polygons[1, 2] = [sum_width / ppm, max_height / ppm]
+    polygons[1, 3] = [0, max_height / ppm]
 
     return polygons
 
@@ -129,14 +131,14 @@ def add_padding(image: np.ndarray, padding: int) -> np.ndarray:
 
 class TestCase:
     name: str
-    image: np.ndarray
+    image_path: str
     polygon: np.ndarray
     target_result: bool
 
-    def __init__(self, name: str, image: np.ndarray, polygon: np.ndarray,
+    def __init__(self, name: str, image_path: str, polygon: np.ndarray,
                  target_result: bool):
         self.name = name
-        self.image = image
+        self.image_path = image_path
         self.polygon = polygon
         self.target_result = target_result
 
@@ -153,10 +155,8 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
     #    image.save_image(cut_objects[-1], f"placer_cut_objects/object_{i}.png")
 
     for i in range(len(object_images)):
-        # obj = cut_out_object(object_grayscale_images[i], object_images[i]))
-        # image.save_image(cut_objects[-1], f"cut_objects/object_{i}.jpg")
-        obj = image.open_image_rgb(f"cut_objects/object_{i}.png")
-        obj = add_padding(obj, RestrictionHandler.get("min_dist_between_obj")[0] * ppm / 2)
+        obj = image.open_image_rgb(f"placer_cut_objects/object_{i}.png")
+        obj = add_padding(obj, int(RestrictionHandler.get("min_dist_between_obj")[0] * ppm / 2))
         cut_objects.append(obj)
 
     test_cases: List[TestCase] = []
@@ -171,21 +171,21 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
     # generate test case images
     for case_index, object_indices in enumerate(test_case_object_indices):
         test_case_objects = [cut_objects[i] for i in object_indices]
+        obj_num = len(test_case_objects)
 
         # generate image
         test_image = generate_test_image(test_case_objects, background_image)
-        image.save_image(test_image, f"test_cases/case_{case_index}.jpg")
+        test_image_path = f"test_cases/case_{case_index}.jpg"
+        image.save_image(test_image, test_image_path)
 
         # true cases
         polygons = generate_polygons(test_case_objects, ppm)
         for i, polygon in enumerate(polygons):
-            test_cases.append(TestCase(f"{case_index}_case_{i}_poly_true",
-                                       test_image, polygon, True))
+            test_cases.append(TestCase(f"{case_index}_case_{obj_num}_objects_{i}_poly_true", test_image_path, polygon, True))
         # false cases
         polygons /= 2
         for i, polygon in enumerate(polygons):
-            test_cases.append(TestCase(f"{case_index}_case_{i}_poly_false",
-                                       test_image, polygon, False))
+            test_cases.append(TestCase(f"{case_index}_case_{obj_num}_objects_{i}_poly_false", test_image_path, polygon, False))
 
     # test
     true_positive = 0
@@ -193,7 +193,9 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
     false_positive = 0
     false_negative = 0
     for test_case in test_cases:
-        #result = check_image("", test_case.polygon)
+        print(f"~~~~~~~~~~~~~~~~~~~~~ {test_case.name} ~~~~~~~~~~~~~~~~~~~~~")
+        print(f"image: {test_case.image_path} polygon: {test_case.polygon}")
+        #result = check_image(test_case.image_path, test_case.polygon)
         result = True
         if test_case.target_result:
             if result:
@@ -205,8 +207,14 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
                 true_negative += 1
             else:
                 false_negative += 1
+        print(f"Expected: {test_case.target_result} Actual: {result}")
 
     # show infographic
+    print("-------------------- TEST RESULTS --------------------")
+    table = [['', 'Expected positive', 'Expected negative'],
+             ['Actual positive', f'{true_positive}', f'{false_positive}'],
+             ['Actual negative', f'{false_negative}', f'{false_negative}']]
+    print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
     pass
 
 
