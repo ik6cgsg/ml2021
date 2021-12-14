@@ -100,6 +100,10 @@ def generate_polygons(objects: List[np.ndarray], ppm: float) -> np.ndarray:
         sum_width += obj.shape[1]
         max_height = np.max(max_height, obj.shape[0])
         max_width = np.max(max_width, obj.shape[1])
+        sum_height += obj.shape[0] - DEFAULT_PPM
+        sum_width += obj.shape[1] - DEFAULT_PPM
+        max_height = np.max(max_height, obj.shape[0] - DEFAULT_PPM)
+        max_width = np.max(max_width, obj.shape[1] - DEFAULT_PPM)
 
     # max width, sum height
     polygons = np.ndarray((4, 4, 2))
