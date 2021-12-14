@@ -1,6 +1,13 @@
 # Intelligent-placer-and-checker (ml2021)
 SPbPU, Machine Learning, Intelligent Placer + Intelligent Checker
 
+# Участники
+Петр Васильев - https://github.com/pv6
+
+Илья Козлов - https://github.com/ik6cgsg
+
+Павел Денисов - https://github.com/Ppasha9
+
 # Постановка задачи
 Требуется реализовать `Intelligent checker`, который отвечает за вырезание объектов с изображений и создании тест кейсов для `Intelligent placer'a`. В каждом тест кейсе имеется фотография нескольких предметов на светлой горизонтальной поверхности и многоугольник. Соответственно, `Intelligent placer` должен понять можно ли расположить одновременно все предметы на плоскости так, чтобы они поместились в заданный многоугольник.
 
