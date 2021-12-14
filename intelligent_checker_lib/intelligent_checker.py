@@ -1,5 +1,3 @@
-from builtins import object
-
 import cv2
 import glob
 import argparse
@@ -91,21 +89,47 @@ def cut_out_object(image_grayscale: np.ndarray, image_color: np.ndarray) -> np.n
     return warp_to_scale(cut_out, image_grayscale, DEFAULT_PPM)
 
 
-def generate_polygon():
-    pass
+def generate_polygons(objects: List[np.ndarray], ppm: float) -> np.ndarray:
+    sum_width = 0
+    sum_height = 0
+    max_width = 0
+    max_height = 0
+
+    for obj in objects:
+        sum_height += obj.shape[0]
+        sum_width += obj.shape[1]
+        max_height = np.max(max_height, obj.shape[0])
+        max_width = np.max(max_width, obj.shape[1])
+
+    # max width, sum height
+    polygons = np.ndarray((4, 4, 2))
+    polygons[0, 0] = [0, 0]
+    polygons[0, 1] = [max_width * ppm, 0]
+    polygons[0, 2] = [max_width * ppm, sum_height * ppm]
+    polygons[0, 3] = [0, sum_height * ppm]
+    # max height, sum width
+    polygons[1, 0] = [0, 0]
+    polygons[1, 1] = [sum_width * ppm, 0]
+    polygons[1, 2] = [sum_width * ppm, max_height * ppm]
+    polygons[1, 3] = [0, max_height * ppm]
+
+    return polygons
 
 
 def add_padding(image: np.ndarray, padding: int) -> np.ndarray:
-    pass
+    output = np.zeros((image.shape[0] + padding, image.shape[1] + padding, image.shape[2]))
+    output[padding:padding + image.shape[0], padding:padding + image.shape[1]] = image
+    return output
 
 
 class TestCase:
     name: str
     image: np.ndarray
-    polygon: List
+    polygon: np.ndarray
     target_result: bool
 
-    def __init__(self, name: str, image: np.ndarray, polygon: List, target_result: bool):
+    def __init__(self, name: str, image: np.ndarray, polygon: np.ndarray,
+                 target_result: bool):
         self.name = name
         self.image = image
         self.polygon = polygon
@@ -116,12 +140,15 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
          background_image: np.ndarray) -> None:
     # cut out objects
     cut_objects: List[np.ndarray] = []
-    # for i in range(len(object_images)):
-    #     cut_objects.append(cut_out_object(object_grayscale_images[i], object_images[i]))
-    #     image.save_image(cut_objects[-1], f"cut_objects/object_{i}.jpg")
+
+    ppm = DEFAULT_PPM
 
     for i in range(len(object_images)):
-        cut_objects.append(image.open_image_rgb(f"cut_objects/object_{i}.jpg"))
+        # obj = cut_out_object(object_grayscale_images[i], object_images[i]))
+        # image.save_image(cut_objects[-1], f"cut_objects/object_{i}.jpg")
+        obj = image.open_image_rgb(f"cut_objects/object_{i}.jpg")
+        obj = add_padding(obj, RestrictionHandler.get("min_dist_between_obj")[0] * ppm / 2)
+        cut_objects.append(obj)
 
     test_cases: List[TestCase] = []
 
@@ -136,60 +163,20 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
     for case_index, object_indices in enumerate(test_case_object_indices):
         test_case_objects = [cut_objects[i] for i in object_indices]
 
-        # "aspect_ratio", to background
-
-        # figure out scaling
-        # calculate object area
-        object_area = 0
-        for object_image in test_case_objects:
-            object_area += object_image.shape[0] * object_image.shape[1]
-
-        # calculate area percentage
-        # add padding as necessary
-
-        # # set scaling as necessary?????
-        # scale = 2
-        # for i, image in enumerate(test_case_objects):
-        #     test_case_objects[i] = scale_transform(image, scale)
-
         # generate image
         test_image = generate_test_image(test_case_objects, background_image)
         image.save_image(test_image, f"govno/{case_index}_zalupa.jpg")
 
-        # "resolution", to generated image
-        # ...
-
-        # "camera_shift"?????
-
-        # noise
-        # ...
-
-        # blur
-        # ...
-
-        test_cases.append(TestCase(f"{case_index}", test_image, [], True))
-
-    # "rotation",
-
-    # "min_dist_between_obj",
-
-    # "min_dist_between_obj_polygon",
-    # "max_dist_between_obj_center",
-
-    # "polygon_vertex_num",
-    # "polygon_angle",
-
-    # ,
-
-    # "area_ratio",
-
-    # "same_obj_num",
-
-    # "back_shadows",
-
-    # "back_diff_obj",
-
-    # generate polygon
+        # true cases
+        polygons = generate_polygons(test_case_objects, ppm)
+        for i, polygon in enumerate(polygons):
+            test_cases.append(TestCase(f"{case_index}_case_{i}_poly_true",
+                                       test_image, polygon, True))
+        # false cases
+        polygons /= 2
+        for i, polygon in enumerate(polygons):
+            test_cases.append(TestCase(f"{case_index}_case_{i}_poly_false",
+                                       test_image, polygon, False))
 
     # test
     true_positive = 0
