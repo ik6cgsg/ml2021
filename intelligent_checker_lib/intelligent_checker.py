@@ -8,6 +8,7 @@ from intelligent_checker_lib.util import image
 from intelligent_checker_lib.util import common
 from intelligent_checker_lib.util.restrictions import RestrictionHandler
 import itertools
+#from intelligent_gritsaenko_placer.intelligent_placer_lib.intelligent_placer import check_image
 
 
 TAG = '[intelligent_checker]'
@@ -147,10 +148,14 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
 
     ppm = DEFAULT_PPM
 
+    #for i in range(len(object_images)):
+    #    cut_objects.append(cut_out_object(object_grayscale_images[i], object_images[i]))
+    #    image.save_image(cut_objects[-1], f"placer_cut_objects/object_{i}.png")
+
     for i in range(len(object_images)):
         # obj = cut_out_object(object_grayscale_images[i], object_images[i]))
         # image.save_image(cut_objects[-1], f"cut_objects/object_{i}.jpg")
-        obj = image.open_image_rgb(f"cut_objects/object_{i}.jpg")
+        obj = image.open_image_rgb(f"cut_objects/object_{i}.png")
         obj = add_padding(obj, RestrictionHandler.get("min_dist_between_obj")[0] * ppm / 2)
         cut_objects.append(obj)
 
@@ -169,7 +174,7 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
 
         # generate image
         test_image = generate_test_image(test_case_objects, background_image)
-        image.save_image(test_image, f"govno/{case_index}_zalupa.jpg")
+        image.save_image(test_image, f"test_cases/case_{case_index}.jpg")
 
         # true cases
         polygons = generate_polygons(test_case_objects, ppm)
@@ -188,7 +193,7 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
     false_positive = 0
     false_negative = 0
     for test_case in test_cases:
-        # result = check_image("", test_case.polygon)
+        #result = check_image("", test_case.polygon)
         result = True
         if test_case.target_result:
             if result:
@@ -207,11 +212,12 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--images_folder", default="objects/",
+    parser.add_argument("-f", "--images_folder", default="../objects/",
                         type=str, help="local path to 10 images with single objects placed on a4")
     parser.add_argument("-b", "--background", default="back.jpg",
                         type=str, help="local path to image with background")
-    parser.add_argument("-r", "--restrictions", default="default_config.yaml",
+    parser.add_argument("-r", "--restrictions",
+                        default="../intelligent_gritsaenko_placer/intelligent_placer_lib/default_config.yaml",
                         type=str, help="local path to restrictions json")
     args = parser.parse_args()
 
