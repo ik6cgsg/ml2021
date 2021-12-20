@@ -134,13 +134,15 @@ class TestCase:
     image_path: str
     polygon: np.ndarray
     target_result: bool
+    objects_indices: List[int]
 
     def __init__(self, name: str, image_path: str, polygon: np.ndarray,
-                 target_result: bool):
+                 target_result: bool, objects_indices: List[int]):
         self.name = name
         self.image_path = image_path
         self.polygon = polygon
         self.target_result = target_result
+        self.objects_indices = objects_indices
 
 
 def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
@@ -152,10 +154,10 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
 
     #for i in range(len(object_images)):
     #    cut_objects.append(cut_out_object(object_grayscale_images[i], object_images[i]))
-    #    image.save_image(cut_objects[-1], f"placer_cut_objects/object_{i}.png")
-
+    #    image.save_image(cut_objects[-1], f"test_cut_objects/object_{i}.png")
+    #return
     for i in range(len(object_images)):
-        obj = image.open_image_rgb(f"placer_cut_objects/object_{i}.png")
+        obj = image.open_image_rgb(f"test_cut_objects/object_{i}.png")
         obj = add_padding(obj, int(RestrictionHandler.get("min_dist_between_obj")[0] * ppm / 2))
         cut_objects.append(obj)
 
@@ -164,7 +166,7 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
     # generate object subsets
     indices = range(len(cut_objects))
     test_case_object_indices: List[List[int]] = []
-    for k in range(1, RestrictionHandler.get("obj_num")[1] + 1):
+    for k in range(RestrictionHandler.get("obj_num")[0], RestrictionHandler.get("obj_num")[1] + 1):
         for subset in itertools.combinations(indices, k):
             test_case_object_indices.append(subset)
 
@@ -181,22 +183,45 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
         # true cases
         polygons = generate_polygons(test_case_objects, ppm)
         for i, polygon in enumerate(polygons):
-            test_cases.append(TestCase(f"{case_index}_case_{obj_num}_objects_{i}_poly_true", test_image_path, polygon, True))
+            test_cases.append(TestCase(
+                f"{case_index}_case_{obj_num}_objects_{i}_poly_true",
+                test_image_path,
+                polygon.copy(),
+                True,
+                object_indices
+            ))
         # false cases
         polygons /= 2
         for i, polygon in enumerate(polygons):
-            test_cases.append(TestCase(f"{case_index}_case_{obj_num}_objects_{i}_poly_false", test_image_path, polygon, False))
+            test_cases.append(TestCase(
+                f"{case_index}_case_{obj_num}_objects_{i}_poly_false",
+                test_image_path,
+                polygon.copy(),
+                False,
+                object_indices
+            ))
 
     # test
     true_positive = 0
     true_negative = 0
     false_positive = 0
     false_negative = 0
+    stats = np.zeros(shape=(len(cut_objects), 4))
     for test_case in test_cases:
         print(f"~~~~~~~~~~~~~~~~~~~~~ {test_case.name} ~~~~~~~~~~~~~~~~~~~~~")
         print(f"image: {test_case.image_path} polygon: {test_case.polygon}")
-        #result = check_image(test_case.image_path, test_case.polygon)
-        result = True
+        result = check_image(test_case.image_path, test_case.polygon)
+        for obj_id in test_case.objects_indices:
+            if test_case.target_result:
+                if result:
+                    stats[obj_id, 0] += 1
+                else:
+                    stats[obj_id, 1] += 1
+            else:
+                if not result:
+                    stats[obj_id, 2] += 1
+                else:
+                    stats[obj_id, 3] += 1
         if test_case.target_result:
             if result:
                 true_positive += 1
@@ -211,18 +236,24 @@ def test(object_images: np.ndarray, object_grayscale_images: np.ndarray,
 
     # show infographic
     print("-------------------- TEST RESULTS --------------------")
+    print("~~~~~~~~~~~~ GLOBAL ~~~~~~~~~~~~")
     table = [['', 'Expected positive', 'Expected negative'],
              ['Actual positive', f'{true_positive}', f'{false_positive}'],
-             ['Actual negative', f'{false_negative}', f'{false_negative}']]
+             ['Actual negative', f'{false_negative}', f'{true_negative}']]
     print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
-    pass
+    for i, stat in enumerate(stats):
+        print(f"~~~~~~~~~~~~ OBJECT[{i}] ~~~~~~~~~~~~")
+        table = [['', 'Expected positive', 'Expected negative'],
+                 ['Actual positive', f'{stat[0]}', f'{stat[1]}'],
+                 ['Actual negative', f'{stat[3]}', f'{stat[2]}']]
+        print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--images_folder", default="../objects/",
+    parser.add_argument("-f", "--images_folder", default="test_objects/",
                         type=str, help="local path to 10 images with single objects placed on a4")
-    parser.add_argument("-b", "--background", default="back.jpg",
+    parser.add_argument("-b", "--background", default="back_white.jpg",
                         type=str, help="local path to image with background")
     parser.add_argument("-r", "--restrictions",
                         default="../intelligent_gritsaenko_placer/intelligent_placer_lib/default_config.yaml",
